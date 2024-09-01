@@ -54,6 +54,11 @@ app.post('/ranking', async (req, res) => {
     }
 });
 
+// Agregar un Endpoint para la Ruta Raíz
+app.get('/', (req, res) => {
+    res.send('Bienvenido a El Codi Game API. Utiliza los endpoints /ranking para obtener información.');
+});
+
 // Iniciar el servidor
 app.listen(port, () => {
     console.log(`Servidor corriendo en http://localhost:${port}`);
