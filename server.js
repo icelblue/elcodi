@@ -23,8 +23,9 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // Esquema de Mongoose para el ranking y datos del usuario
 const userSchema = new mongoose.Schema({
-    userId: String,
-    name: String,
+    userId: { type: String, unique: true, required: true }, // Campo único y requerido para el `userId`
+    internalId: { type: mongoose.Schema.Types.ObjectId, auto: true }, // `internalId` único generado por MongoDB
+    name: String, // Campo para almacenar el nombre del usuario
     xp: Number,
     date: String,
     sequence: [Number],
@@ -36,9 +37,19 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// Endpoint para la ruta raíz
-app.get('/', (req, res) => {
-    res.send('Bienvenido a El Codi Game API. Utiliza los endpoints /ranking, /xp, y /total-xp para obtener información.');
+// Endpoint para validar unicidad de userId y obtener nombre
+app.get('/validate-userid', async (req, res) => {
+    const { userId } = req.query;
+    try {
+        const user = await User.findOne({ userId: userId });
+        if (user) {
+            res.json({ isUnique: false, name: user.name });
+        } else {
+            res.json({ isUnique: true });
+        }
+    } catch (err) {
+        res.status(500).send(err);
+    }
 });
 
 // Endpoint para obtener puntos XP del usuario específico
@@ -72,7 +83,7 @@ app.get('/total-xp', async (req, res) => {
 
 // Endpoint para agregar o actualizar puntos XP y secuencia del usuario
 app.post('/xp', async (req, res) => {
-    const { xp, date, userId, attempts, sequence, won } = req.body;
+    const { xp, date, userId, attempts, sequence, won, name } = req.body;
     console.log(`Received XP data: ${JSON.stringify(req.body)}`);
     try {
         const existingEntry = await User.findOne({ date: date, userId: userId });
@@ -81,16 +92,23 @@ app.post('/xp', async (req, res) => {
             existingEntry.sequence = sequence;  // Actualizar la secuencia
             existingEntry.attempts = attempts;  // Actualizar el número de intentos
             existingEntry.won = won;  // Actualizar el estado de victoria
+            if (name && existingEntry.name !== name) {
+                existingEntry.name = name; // Actualizar nombre si se proporciona uno nuevo
+            }
             existingEntry.updatedAt = new Date();  // Actualizar la fecha de modificación
             await existingEntry.save();
             res.json({ message: 'XP y secuencia actualizados', entry: existingEntry });
         } else {
-            const newEntry = new User({ userId, xp, date, sequence, attempts, won, createdAt: new Date(), updatedAt: new Date() });
+            const newEntry = new User({ userId, name, xp, date, sequence, attempts, won, createdAt: new Date(), updatedAt: new Date() });
             await newEntry.save();
             res.status(201).json({ message: 'XP y secuencia almacenados', entry: newEntry });
         }
     } catch (err) {
-        res.status(500).send(err);
+        if (err.code === 11000) { // Error de duplicado
+            res.status(400).json({ message: 'User ID ya existe, generar uno nuevo' });
+        } else {
+            res.status(500).send(err);
+        }
     }
 });
 
@@ -109,6 +127,12 @@ app.get('/ranking', async (req, res) => {
 app.post('/ranking', async (req, res) => {
     const { name, xp, date, userId, attempts, sequence, won } = req.body;
     try {
+        const existingEntry = await User.findOne({ userId: userId });
+        if (existingEntry) {
+            // Actualizar nombre si ya existe el `userId` pero se proporciona un nuevo nombre
+            existingEntry.name = name;
+            await existingEntry.save();
+        }
         const newEntry = new User({ name, xp, date, userId, attempts, sequence, won, createdAt: new Date(), updatedAt: new Date() });
         await newEntry.save();
         res.status(201).json({ message: 'Ranking actualizado', entry: newEntry });
