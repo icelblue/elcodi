@@ -23,8 +23,9 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // Esquema de Mongoose para el ranking y datos del usuario
 const userSchema = new mongoose.Schema({
-    userId: { type: String, required: true, unique: true }, // Asegurar unicidad
-    name: String,
+    userId: { type: String, unique: true, required: true }, // Campo único y requerido para el `userId`
+    internalId: { type: mongoose.Schema.Types.ObjectId, auto: true }, // `internalId` único generado por MongoDB
+    name: String, // Campo para almacenar el nombre del usuario
     xp: Number,
     date: String,
     sequence: [Number],
@@ -36,7 +37,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// Endpoint para validar unicidad de userId
+// Endpoint para validar unicidad de userId y obtener nombre
 app.get('/validate-userid', async (req, res) => {
     const { userId } = req.query;
     try {
@@ -47,7 +48,7 @@ app.get('/validate-userid', async (req, res) => {
             res.json({ isUnique: true });
         }
     } catch (err) {
-        res.status(500).json({ isUnique: false, error: 'Error en la validación de userId' });
+        res.status(500).send(err);
     }
 });
 
@@ -66,27 +67,48 @@ app.get('/xp', async (req, res) => {
     }
 });
 
-// Endpoint para agregar o actualizar puntos XP
+// Endpoint para obtener los puntos acumulados hasta la fecha para un usuario
+app.get('/total-xp', async (req, res) => {
+    const { userId } = req.query;
+    try {
+        const totalXP = await User.aggregate([
+            { $match: { userId: userId } },
+            { $group: { _id: null, totalXP: { $sum: "$xp" } } }
+        ]);
+        res.json({ totalXP: totalXP[0] ? totalXP[0].totalXP : 0 });
+    } catch (err) {
+        res.status(500).send(err);
+    }
+});
+
+// Endpoint para agregar o actualizar puntos XP y secuencia del usuario
 app.post('/xp', async (req, res) => {
-    const { xp, date, userId, sequence, attempts, won, name } = req.body;
+    const { xp, date, userId, attempts, sequence, won, name } = req.body;
+    console.log(`Received XP data: ${JSON.stringify(req.body)}`);
     try {
         const existingEntry = await User.findOne({ date: date, userId: userId });
         if (existingEntry) {
-            existingEntry.xp = Math.max(existingEntry.xp, xp);
-            existingEntry.sequence = sequence;
-            existingEntry.attempts = attempts;
-            existingEntry.won = won;
-            existingEntry.name = name; // Asegurarse de que el nombre se actualice
-            existingEntry.updatedAt = new Date();
+            existingEntry.xp += xp;  // Sumar XP a los XP existentes
+            existingEntry.sequence = sequence;  // Actualizar la secuencia
+            existingEntry.attempts = attempts;  // Actualizar el número de intentos
+            existingEntry.won = won;  // Actualizar el estado de victoria
+            if (name && existingEntry.name !== name) {
+                existingEntry.name = name; // Actualizar nombre si se proporciona uno nuevo
+            }
+            existingEntry.updatedAt = new Date();  // Actualizar la fecha de modificación
             await existingEntry.save();
             res.json({ message: 'XP y secuencia actualizados', entry: existingEntry });
         } else {
-            const newEntry = new User({ userId, xp, date, sequence, attempts, won, name });
+            const newEntry = new User({ userId, name, xp, date, sequence, attempts, won, createdAt: new Date(), updatedAt: new Date() });
             await newEntry.save();
             res.status(201).json({ message: 'XP y secuencia almacenados', entry: newEntry });
         }
     } catch (err) {
-        res.status(500).send(err);
+        if (err.code === 11000) { // Error de duplicado
+            res.status(400).json({ message: 'User ID ya existe, generar uno nuevo' });
+        } else {
+            res.status(500).send(err);
+        }
     }
 });
 
@@ -105,7 +127,13 @@ app.get('/ranking', async (req, res) => {
 app.post('/ranking', async (req, res) => {
     const { name, xp, date, userId, attempts, sequence, won } = req.body;
     try {
-        const newEntry = new User({ name, xp, date, userId, attempts, sequence, won });
+        const existingEntry = await User.findOne({ userId: userId });
+        if (existingEntry) {
+            // Actualizar nombre si ya existe el `userId` pero se proporciona un nuevo nombre
+            existingEntry.name = name;
+            await existingEntry.save();
+        }
+        const newEntry = new User({ name, xp, date, userId, attempts, sequence, won, createdAt: new Date(), updatedAt: new Date() });
         await newEntry.save();
         res.status(201).json({ message: 'Ranking actualizado', entry: newEntry });
     } catch (err) {
