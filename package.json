@@ -1,3 +1,11 @@
-"scripts": {
-  "start": "node server.js"
+{
+  "name": "elcodi",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "npm run build",
+    "start": "vercel dev"
+  },
+  "devDependencies": {
+    "@vercel/static-build": "latest"
+  }
 }
