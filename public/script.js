@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     async function validateUserIdUniqueness(userId) {
         try {
-            const response = await fetch(`/api/validate-userid?userId=${userId}`);
+            const response = await fetch(`../api/validate-userid?userId=${userId}`);
             return await response.json();
         } catch (error) {
             console.error('Error validating userId uniqueness:', error);
@@ -90,7 +90,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     function storeDailyXP(xp, name) {
         const date = new Date().toISOString().split('T')[0];
-        fetch('/api/xp', {
+        fetch('../api/xp', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -108,7 +108,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     function loadTotalXP() {
-        fetch(`/api/total-xp?userId=${userId}`)
+        fetch(`../api/total-xp?userId=${userId}`)
             .then(response => response.json())
             .then(data => {
                 const totalXP = data.totalXP || 0;
@@ -121,7 +121,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     function loadDailyXP() {
         const date = new Date().toISOString().split('T')[0];
-        fetch(`/api/xp?date=${date}&userId=${userId}`)
+        fetch(`../api/xp?date=${date}&userId=${userId}`)
             .then(response => response.json())
             .then(data => {
                 dailyXP = data.xp || 0;
