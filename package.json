@@ -1,0 +1,22 @@
+{
+  "name": "ranking-game",
+  "version": "1.0.0",
+  "description": "Aplicación de juego con ranking conectada a MongoDB",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "mongodb": "^5.5.0",
+    "mongoose": "^8.8.3"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  },
+  "author": "Tu Nombre",
+  "license": "MIT"
+}
