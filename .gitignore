@@ -1,0 +1,24 @@
+# Ignorar módulos de Node.js
+node_modules/
+
+# Ignorar las variables de entorno locales
+.env
+.env.local
+
+# Ignorar archivos de logs
+*.log
+
+# Ignorar configuraciones específicas de sistemas operativos
+.DS_Store
+Thumbs.db
+
+# Ignorar configuraciones específicas de editores
+.vscode/
+.idea/
+
+# Ignorar directorios de compilación
+build/
+dist/
+# Ignorar claves privadas
+*.key
+*.pem
